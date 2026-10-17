@@ -1,15 +1,20 @@
-"""Analysis orchestration + history endpoints (P1 orchestrator, P4 persistence)."""
+"""Analysis orchestration + history endpoints (history persistence lands in P4)."""
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
+
+from app.schemas.analysis import AnalyzeRequest
+from app.services import analysis_client
 
 router = APIRouter()
 
 
 @router.post("")
-async def create_analysis() -> dict:
-    raise HTTPException(status_code=501, detail="Analysis orchestration lands in P4")
+async def create_analysis(payload: AnalyzeRequest) -> dict:
+    return await analysis_client.analyze(
+        payload.cv_text, payload.jd_text, payload.options.model_dump()
+    )
 
 
 @router.get("")
 async def list_analyses() -> dict:
-    raise HTTPException(status_code=501, detail="History lands in P4")
+    return {"analyses": [], "note": "history persistence lands in P4"}
