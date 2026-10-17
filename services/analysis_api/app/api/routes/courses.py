@@ -14,7 +14,7 @@ def _load_catalog() -> list[dict]:
     path = Path(settings.data_dir) / "courses.json"
     if not path.exists():
         return []
-    return json.loads(path.read_text(encoding="utf-8"))
+    return json.loads(path.read_text(encoding="utf-8")).get("courses", [])
 
 
 @router.get("/courses")
