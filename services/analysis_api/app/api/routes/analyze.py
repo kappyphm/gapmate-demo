@@ -1,10 +1,13 @@
-"""Full analysis endpoint (implemented in P1+)."""
+"""Full analysis endpoint."""
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
+
+from app.pipeline.analyze import run_analysis
+from app.schemas.report import AnalyzeRequest, Report
 
 router = APIRouter()
 
 
-@router.post("/analyze")
-async def analyze() -> dict:
-    raise HTTPException(status_code=501, detail="Analysis pipeline lands in P1")
+@router.post("/analyze", response_model=Report)
+async def analyze(payload: AnalyzeRequest) -> Report:
+    return run_analysis(payload)
