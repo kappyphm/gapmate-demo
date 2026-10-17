@@ -49,3 +49,4 @@ docker compose up --build
 | `docs/04-scoring-ats-rules.md` | Scoring rubric & ATS rules |
 | `docs/05-api-db-spec.md` | API & DB spec |
 | `docs/06-roadmap-phases.md` | Roadmap & git workflow |
+| `docs/07-analysis-pipeline.md` | Analysis pipeline & AI guardrails |
