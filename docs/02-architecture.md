@@ -74,7 +74,7 @@ Stages 2/3/7 can run in parallel; 8–11 depend on 5/6/7.
 
 ## 5. External dependencies
 
-- **Gemini** — `gemini-2.0-flash` for parsing/reasoning, `text-embedding-004` for semantic match.
+- **Gemini** — `gemini-3.5-flash-lite` for parsing/reasoning, `gemini-embedding-001` for semantic match.
   Set `GEMINI_API_KEY`. Structured output (`responseSchema`) is required for parsers/scores.
 - **PostgreSQL 16** — accessed only by core_api via SQLAlchemy async + Alembic.
 - **Tesseract OCR** (vie+eng) installed in the analysis_api image for scanned PDFs.

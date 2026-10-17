@@ -23,8 +23,8 @@ services:
     container_name: gapmate-analysis-api
     environment:
       GEMINI_API_KEY: ${GEMINI_API_KEY}
-      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.0-flash}
-      GEMINI_EMBED_MODEL: ${GEMINI_EMBED_MODEL:-text-embedding-004}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.5-flash-lite}
+      GEMINI_EMBED_MODEL: ${GEMINI_EMBED_MODEL:-gemini-embedding-001}
       INTERNAL_API_KEY: ${INTERNAL_API_KEY:-change-me-internal-key}
       DATA_DIR: /data
     ports:
