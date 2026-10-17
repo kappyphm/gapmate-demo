@@ -1,0 +1,15 @@
+# Normalize line endings cross-platform (Windows dev)
+* text=auto eol=lf
+
+# Binary assets
+*.pdf binary
+*.docx binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.ico binary
+
+# Keep language stats meaningful
+*.json linguist-detectable
+data/** linguist-documentation
+docs/** linguist-documentation

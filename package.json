@@ -1,0 +1,14 @@
+{
+  "name": "gapmate",
+  "private": true,
+  "version": "0.1.0",
+  "description": "GapMate — CV/JD analysis monorepo",
+  "scripts": {
+    "dev:web": "pnpm --filter gapmate-web dev",
+    "build:web": "pnpm --filter gapmate-web build",
+    "types:generate": "pnpm --filter @gapmate/shared-types generate",
+    "up": "docker compose up --build",
+    "down": "docker compose down"
+  },
+  "packageManager": "pnpm@9.12.2"
+}
