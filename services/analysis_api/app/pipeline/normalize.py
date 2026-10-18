@@ -50,7 +50,11 @@ def canonical(skill_id: str) -> str:
 def _exact(raw: str) -> str | None:
     key = raw.lower().strip()
     for s in skill_map().values():
-        terms = {s["canonical_name"].lower(), s["skill_id"].lower(), s["skill_id"].replace("_", " ")}
+        terms = {
+            s["canonical_name"].lower(),
+            s["skill_id"].lower(),
+            s["skill_id"].replace("_", " "),
+        }
         for lang_terms in s.get("aliases", {}).values():
             terms.update(t.lower() for t in lang_terms)
         if key in terms:

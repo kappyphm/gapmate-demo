@@ -51,8 +51,18 @@ Base URL (dev): `http://localhost:8001` — not exposed to the browser.
 ```jsonc
 // request
 { "cv_text": "", "jd_text": "", "cv_layout": {}, "options": { "role_template": "frontend", "hours_per_week": 8 } }
-// response: Report
+// response: Report (see 03-data-contracts) — includes `ats`, `suggestions`, `ats_preview`
 ```
+
+### `POST /v1/ats-check`
+```jsonc
+// request
+{ "cv": { /* CVDoc */ }, "cv_text": "", "layout": { /* extract layout facts */ }, "jd_keywords": ["typescript"] }
+// response: AtsSection (score, issues[], keyword_coverage, format_issues)
+```
+
+> `cv_layout` / `layout` come from `POST /v1/extract` (file upload). When the CV is pasted as
+> text, omit it and the engine assumes a single-column, text-based document.
 
 ## 3. Auth flow
 

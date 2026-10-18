@@ -45,7 +45,7 @@ Web TypeScript types are generated from the core_api OpenAPI schema.
 
 ```jsonc
 {
-  "meta": { "pipeline_version": "0.1.0", "created_at": "ISO8601", "confidence": 0.0 },
+  "meta": { "pipeline_version": "0.2.0", "created_at": "ISO8601", "confidence": 0.0 },
   "match": {
     "overall": 0, "subscores": { "skills": 0, "experience": 0, "education": 0, "keywords": 0 },
     "matched":  [ { "skill_id": "", "match_score": 1.0, "match_type": "exact|alias|semantic|llm", "evidence_span": "" } ],
@@ -54,9 +54,10 @@ Web TypeScript types are generated from the core_api OpenAPI schema.
   },
   "ats": {
     "score": 0,
-    "issues": [ { "code": "A3", "severity": "critical|warn|info", "message": "", "fix": "" } ],
+    "issues": [ { "code": "A3", "severity": "critical|warn|info", "weight": 3, "pass": true, "message": "", "fix": "" } ],
     "keyword_coverage": { "matched": [], "missing": [] },
-    "format_issues": []
+    "format_issues": ["A3"],
+    "projected_score": 0
   },
   "gaps": [
     { "skill_id": "", "importance": 0.0, "current_level": 0, "target_level": 0,
@@ -72,10 +73,17 @@ Web TypeScript types are generated from the core_api OpenAPI schema.
   ],
   "suggestions": [
     { "section": "experience[0].bullets[1]", "original": "", "improved": "",
-      "reason": "", "jd_keywords_addressed": [], "needs_user_input": ["metric"] }
-  ]
+      "reason": "", "jd_keywords_addressed": [], "needs_user_input": ["metric"], "code": "C4" }
+  ],
+  "ats_preview": { "before": 0, "after": 0 }
 }
 ```
+
+Notes:
+- `ats.issues[].pass` is the rule outcome; `weight` derives from severity (critical 3, warn 2, info 1)
+  and `score = 100 · Σ(weight·pass) / Σ weight`.
+- `ats.projected_score` is the ATS score after applying the P2 suggestions (`ats_preview.after`).
+- `match.match_type` gains `semantic` (B3 embedding) and `llm` (B4 adjudication).
 
 ## 4. Skill taxonomy entry
 

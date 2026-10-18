@@ -95,14 +95,18 @@ Cascade from [`04`](./04-scoring-ats-rules.md) Part A. Each match records `match
 
 | Step | Condition | `match_score` |
 |---|---|---|
-| B1 exact | normalized `skill_id` equal | 1.00 |
-| B2 alias/related | alias hit, or a `related` skill present | 0.85–0.90 |
+| B1 exact | normalized `skill_id` equal (aliases resolve here) | 1.00 |
+| B2 alias | alias hit — already normalized to the same `skill_id` | 1.00 |
 | B3 embedding | `cos(req_emb, cv_emb) > T_high` | 0.70–0.90 (scaled) |
 | B4 LLM adjudication | `T_mid < cos ≤ T_high` or ambiguous level | 0.50–0.85 (verdict) |
 | B5 miss | none | 0.00 |
 
-Level factor is applied per [`04`](./04-scoring-ats-rules.md) Part A. Thresholds `T_high = 0.82`,
-`T_mid = 0.70`, tuned on the golden set.
+`related` skills are **not** matches (they feed gap adjacency). ATS `keyword_coverage` is fed the
+same matched set, so a skill cannot be reported as both matched and missing.
+
+Level factor is applied per [`04`](./04-scoring-ats-rules.md) Part A. Thresholds `T_high = 0.95`,
+`T_mid = 0.88`, tuned on the golden set (high because `gemini-embedding-001` similarity baseline is
+high; the middle band defers to LLM adjudication).
 
 ### Stage 6 — `score`
 Rubric from [`04`](./04-scoring-ats-rules.md) Part B: weighted subscores (skills 0.40,
@@ -127,8 +131,9 @@ with **learning adjacency** (`adjacent_to`) to surface fast wins first.
 ### Stage 9 — `suggest`
 Constrained LLM rewriting of weak bullets/sections :
 `{ section, original, improved, reason, jd_keywords_addressed, needs_user_input }`.
-Guardrails: never invent experience; insert `[…]` where metrics are missing; prefer embedding JD
-keywords naturally. Re-running the ATS ruleset on accepted edits yields `before → after`.
+Guardrails: never invent experience or skills; insert `[…]` where metrics are missing; improve
+existing content only. Missing JD skills are handled by Stage 8 (gap), not rewritten into the CV.
+Re-running the ATS ruleset on the accepted edits yields `before → after`.
 
 ### Stage 10 — `roadmap`
 Ordered phases building on Stage 8 gaps, with an AI-generated plan validated by a **nested schema
@@ -176,10 +181,10 @@ Per [`06-roadmap-phases.md`](./06-roadmap-phases.md):
 
 | Phase | Pipeline work |
 |---|---|
-| **P1** ✅ | Stages 1–6 skeleton: `extract → parse → normalize → match → score` (B1–B2 only today) |
-| **P2** | Stage 7 `ats`; harden `extract` (validation + OCR); add B3 embedding / B4 LLM adjudication |
+| **P1** ✅ | Stages 1–6 skeleton: `extract → parse → normalize → match → score` (B1–B2 only) |
+| **P2** ✅ | Stage 7 `ats` (rules engine); `extract` hardening (validation + OCR + layout facts); B3 embedding / B4 LLM adjudication; Stage 9 `suggest` (deterministic subset + before/after ATS projection) |
 | **P3** | Stages 8–11 `gap / roadmap / recommend` (+ candidate discovery) |
-| **P5** | Stage 9 `suggest`, streaming UX |
+| **P5** | Stage 9 full LLM rewriter, streaming UX |
 
 ## Appendix — FitGap reference files
 

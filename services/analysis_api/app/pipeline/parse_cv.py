@@ -4,7 +4,14 @@ import re
 
 from app.llm import gemini
 from app.pipeline.normalize import detect_language, normalize_terms, skills_from_text
-from app.schemas.cv import Contact, CVDoc, CVDocMeta, EducationItem, ExperienceItem
+from app.schemas.cv import (
+    Contact,
+    CVDoc,
+    CVDocMeta,
+    EducationItem,
+    ExperienceItem,
+    SkillItem,
+)
 
 EMAIL_RE = re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+")
 PHONE_RE = re.compile(r"(\+?\d[\d\s.\-]{7,}\d)")
@@ -19,6 +26,13 @@ SECTION_RE = re.compile(
     r"học vấn|education|dự án|projects)\b.*$",
     re.IGNORECASE | re.MULTILINE,
 )
+EXPERIENCE_HEAD_RE = re.compile(
+    r"^#{0,3}\s*(kinh nghiệm|kinh nghiệm làm việc|experience|work experience)\s*$",
+    re.IGNORECASE | re.MULTILINE,
+)
+NEXT_SECTION_RE = re.compile(r"^#{1,2}\s", re.MULTILINE)
+ROLE_HEAD_RE = re.compile(r"^\s*#{2,4}\s+(.*\S)\s*$")
+BULLET_LINE_RE = re.compile(r"^\s*[-*•▪◦]\s+(.*\S)\s*$")
 
 SENIORITY_KEYWORDS = [
     ("intern", ["thực tập", "intern"]),
@@ -45,12 +59,43 @@ def parse_cv(text: str) -> CVDoc:
     doc = _parse_with_gemini(text)
     if doc is not None:
         doc.meta.parse_confidence = 0.85
+        _fill_contact(doc, text)
+        # The LLM may omit sections; union with the deterministic extractor for stable recall.
+        doc.skills = _merge_skills(doc.skills, skills_from_text(text))
+        if not doc.experience:
+            doc.experience = _experience(text)
+        if not doc.education:
+            doc.education = _education(text)
     else:
         doc = _parse_heuristic(text)
         doc.meta.parse_confidence = 0.6
     if not doc.skills:
         doc.skills = skills_from_text(text)
     return doc
+
+
+def _merge_skills(primary: list[SkillItem], extra: list[SkillItem]) -> list[SkillItem]:
+    merged = list(primary)
+    seen = {s.skill_id for s in primary if s.skill_id}
+    for skill in extra:
+        if skill.skill_id and skill.skill_id not in seen:
+            seen.add(skill.skill_id)
+            merged.append(skill)
+    return merged
+
+
+def _fill_contact(doc: CVDoc, text: str) -> None:
+    """Backfill contact fields the LLM may miss, using cheap deterministic regexes."""
+    if not doc.contact.email:
+        doc.contact.email = _first(EMAIL_RE, text)
+    if not doc.contact.phone:
+        doc.contact.phone = _first(PHONE_RE, text)
+    if not doc.contact.linkedin:
+        doc.contact.linkedin = _first(LINKEDIN_RE, text)
+    if not doc.contact.github:
+        doc.contact.github = _first(GITHUB_RE, text)
+    if not doc.contact.name:
+        doc.contact.name = _first_line(text)
 
 
 def _parse_with_gemini(text: str) -> CVDoc | None:
@@ -122,10 +167,52 @@ def _skill_section(text: str) -> list[str]:
 
 
 def _experience(text: str) -> list[ExperienceItem]:
+    head = EXPERIENCE_HEAD_RE.search(text)
+    if not head:
+        return []
+    rest = text[head.end() :]
+    nxt = NEXT_SECTION_RE.search(rest)
+    block = rest[: nxt.start()] if nxt else rest
+
     items: list[ExperienceItem] = []
-    for start, end in DATE_RANGE_RE.findall(text):
-        items.append(ExperienceItem(start=start, end=end))
+    current: ExperienceItem | None = None
+    for raw in block.splitlines():
+        role = ROLE_HEAD_RE.match(raw)
+        if role:
+            if current is not None:
+                items.append(current)
+            current = _role_from(role.group(1))
+            continue
+        bullet = BULLET_LINE_RE.match(raw)
+        if bullet and current is not None:
+            current.bullets.append(bullet.group(1).strip())
+    if current is not None:
+        items.append(current)
     return items
+
+
+def _role_from(text: str) -> ExperienceItem:
+    dates = DATE_RANGE_RE.findall(text)
+    start, end = dates[0] if dates else ("", "")
+    label = DATE_RANGE_RE.sub("", text)
+    label = re.sub(r"\([^)]*\)\s*$", "", label).strip(" \t-—–|()")
+    company, title = _split_company_title(label)
+    return ExperienceItem(
+        company=company,
+        title=title or label,
+        start=start,
+        end=end,
+        seniority=cv_seniority(text),
+        bullets=[],
+    )
+
+
+def _split_company_title(label: str) -> tuple[str, str]:
+    for sep in ("—", "–", " - ", "|"):
+        if sep in label:
+            left, right = label.split(sep, 1)
+            return left.strip(" \t-—–|"), right.strip(" \t-—–|")
+    return "", label.strip()
 
 
 def _education(text: str) -> list[EducationItem]:

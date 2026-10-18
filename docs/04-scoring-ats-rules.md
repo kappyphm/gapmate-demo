@@ -7,13 +7,18 @@ Every match records `match_type` and `evidence_span` for explainability.
 
 | Step | Condition | `match_score` |
 |---|---|---|
-| B1 exact | normalized `skill_id` equal | 1.00 |
-| B2 alias/related | alias hit, or a `related` skill present | 0.85–0.90 |
+| B1 exact | normalized `skill_id` equal (aliases resolve here) | 1.00 |
+| B2 alias | alias hit — already normalized to the same `skill_id` | 1.00 |
 | B3 embedding | `cos(req_emb, cv_emb) > T_high` | 0.70–0.90 (scaled by cosine) |
 | B4 LLM adjudication | `T_mid < cos ≤ T_high` or ambiguous level | 0.50–0.85 (LLM verdict) |
 | B5 miss | none | 0.00 |
 
-Default thresholds: `T_high = 0.82`, `T_mid = 0.70` (tuned on the golden set).
+> `related` skills are **not** treated as matches — they only feed gap adjacency (Part D).
+> A skill the CV does not evidence is a *gap*, never an automatic match.
+
+Default thresholds: `T_high = 0.95`, `T_mid = 0.88` (tuned on the golden set). `gemini-embedding-001`
+has a high similarity baseline (unrelated pairs often score ~0.85), so the auto-accept bar is high
+and the `T_mid < cos ≤ T_high` band is sent to LLM adjudication rather than accepted outright.
 
 **Level factor** applied when the JD requests a proficiency level:
 ```
@@ -112,7 +117,9 @@ For each weak bullet / missing section, return:
 
 Guardrails:
 - Never invent experience or skills.
+- A JD skill the CV does not already evidence is **not** rewritten in — it is surfaced as a
+  gap (Stage 8 / Part D), not as a CV edit.
 - Insert metric placeholders `[…]` where numbers are missing (`needs_user_input`).
-- Prefer embedding JD keywords naturally.
+- Prefer embedding JD keywords naturally into content that already exists.
 
 **Before/After ATS:** re-run the ATS ruleset on the accepted edits and show `before → after`.

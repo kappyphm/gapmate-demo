@@ -42,8 +42,21 @@ def _run(model, prompt: str, schema: dict | None, temperature: float) -> dict | 
 
 # Gemini's Schema type accepts only a small subset of JSON Schema.
 _ALLOWED_KEYS = {
-    "type", "format", "description", "enum", "items", "properties", "required",
-    "nullable", "minimum", "maximum", "minItems", "maxItems", "minLength", "maxLength", "pattern",
+    "type",
+    "format",
+    "description",
+    "enum",
+    "items",
+    "properties",
+    "required",
+    "nullable",
+    "minimum",
+    "maximum",
+    "minItems",
+    "maxItems",
+    "minLength",
+    "maxLength",
+    "pattern",
 }
 
 
@@ -74,5 +87,3 @@ def _to_gemini_schema(node, defs: dict | None = None) -> dict:
         elif key in _ALLOWED_KEYS:
             out[key] = value
     return out
-
-

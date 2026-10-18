@@ -9,6 +9,9 @@ Spec lives in `docs/` (read `03-data-contracts.md` and `04-scoring-ats-rules.md`
 - Copy `.env.example` → `.env` first (gitignored; never commit secrets — repo is public).
 - Ports: web `5173`, core-api `8000`, analysis-api `8001`, postgres `5432`.
 - Health: `curl localhost:8000/health`, `curl localhost:8001/health`. Swagger at `/docs` on both.
+- analysis-api tests + lint (dev deps are not in the prod image):
+  `docker compose exec analysis_api sh -c "pip install -q -r requirements-dev.txt && pytest -q && ruff check app tests && ruff format --check app tests"`.
+- Web gates: `docker compose exec web sh -c "pnpm typecheck && pnpm build"`.
 - Root `package.json` scripts (`pnpm up`, `pnpm down`, `pnpm dev:web`, `pnpm types:generate`) are conveniences only; there is **no root lockfile / no root install**.
 - Web is the only Node package: install/deps live in `apps/web` (own `pnpm-lock.yaml`). Python services use plain `requirements.txt` (no lockfile).
 

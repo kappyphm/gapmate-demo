@@ -9,7 +9,8 @@ const SUBSCORE_LABELS: Record<keyof MatchResult["subscores"], string> = {
 
 function Bar({ value }: { value: number }) {
   const pct = Math.max(0, Math.min(100, value));
-  const color = pct >= 75 ? "bg-emerald-500" : pct >= 50 ? "bg-amber-500" : "bg-rose-500";
+  const color =
+    pct >= 75 ? "bg-emerald-500" : pct >= 50 ? "bg-amber-500" : "bg-rose-500";
   return (
     <div className="h-2 w-full rounded bg-slate-200">
       <div className={`h-2 rounded ${color}`} style={{ width: `${pct}%` }} />
@@ -22,14 +23,20 @@ export default function MatchView({ match }: { match: MatchResult }) {
     <div className="space-y-6">
       <div className="flex items-center gap-6">
         <div className="flex h-28 w-28 flex-col items-center justify-center rounded-full border-4 border-indigo-500">
-          <span className="text-3xl font-bold text-indigo-600">{match.overall}</span>
+          <span className="text-3xl font-bold text-indigo-600">
+            {match.overall}
+          </span>
           <span className="text-xs text-slate-500">/ 100</span>
         </div>
         <div className="grid flex-1 grid-cols-2 gap-4">
-          {(Object.keys(SUBSCORE_LABELS) as (keyof MatchResult["subscores"])[]).map((key) => (
+          {(
+            Object.keys(SUBSCORE_LABELS) as (keyof MatchResult["subscores"])[]
+          ).map((key) => (
             <div key={key} className="space-y-1">
               <div className="flex justify-between text-sm">
-                <span className="font-medium text-slate-700">{SUBSCORE_LABELS[key]}</span>
+                <span className="font-medium text-slate-700">
+                  {SUBSCORE_LABELS[key]}
+                </span>
                 <span className="text-slate-500">{match.subscores[key]}</span>
               </div>
               <Bar value={match.subscores[key]} />
@@ -63,7 +70,9 @@ export default function MatchView({ match }: { match: MatchResult }) {
             Missing ({match.missing.length})
           </h3>
           {match.missing.length === 0 ? (
-            <p className="text-sm text-slate-500">No required skills missing.</p>
+            <p className="text-sm text-slate-500">
+              No required skills missing.
+            </p>
           ) : (
             <ul className="space-y-1">
               {match.missing.map((m) => (

@@ -1,9 +1,11 @@
 """Standalone parse/extract endpoints (useful for testing the pipeline stages)."""
 
-from fastapi import APIRouter, File, UploadFile
+from typing import Annotated
+
+from fastapi import APIRouter, File, HTTPException, UploadFile
 from pydantic import BaseModel
 
-from app.pipeline.extract import extract_text
+from app.pipeline.extract import ExtractError, extract_text
 from app.pipeline.parse_cv import parse_cv
 from app.pipeline.parse_jd import parse_jd
 from app.schemas.cv import CVDoc
@@ -27,6 +29,10 @@ async def parse_jd_route(payload: TextIn) -> JDDoc:
 
 
 @router.post("/extract")
-async def extract_route(file: UploadFile = File(...)) -> dict:
-    text, layout = extract_text(await file.read(), file.filename or "")
-    return {"text": text, "layout": {k: v for k, v in layout.items() if k != "blocks"}, "blocks": layout.get("blocks", [])[:50]}
+async def extract_route(file: Annotated[UploadFile, File()]) -> dict:
+    try:
+        text, layout = extract_text(await file.read(), file.filename or "")
+    except ExtractError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    summary = {k: v for k, v in layout.items() if k != "blocks"}
+    return {"text": text, "layout": summary, "blocks": layout.get("blocks", [])[:50]}

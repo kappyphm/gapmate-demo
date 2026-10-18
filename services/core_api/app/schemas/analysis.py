@@ -11,4 +11,5 @@ class AnalyzeOptions(BaseModel):
 class AnalyzeRequest(BaseModel):
     cv_text: str = ""
     jd_text: str = ""
+    cv_layout: dict = Field(default_factory=dict)
     options: AnalyzeOptions = Field(default_factory=AnalyzeOptions)

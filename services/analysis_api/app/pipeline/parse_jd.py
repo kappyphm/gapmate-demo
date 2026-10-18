@@ -47,17 +47,50 @@ def _parse_with_gemini(text: str) -> JDDoc | None:
         doc = JDDoc.model_validate(data)
     except Exception:  # noqa: BLE001
         return None
-    for req in doc.requirements:
-        if not req.skill_id:
-            matches = find_skills(req.raw)
-            req.skill_id = matches[0][0] if matches else None
+    doc.requirements = _normalize_requirements(doc.requirements)
+    doc.keywords = [k for k in doc.keywords if k in skill_map()] or [
+        r.skill_id for r in doc.requirements if r.skill_id
+    ]
     return doc
+
+
+def _normalize_requirements(reqs: list[Requirement]) -> list[Requirement]:
+    """Validate LLM skill ids against the taxonomy and split merged mentions.
+
+    The LLM sometimes returns compound ids such as ``javascript_react``; we re-derive
+    canonical ids from the raw text so downstream matching/coverage stays consistent.
+    """
+    known = skill_map()
+    out: list[Requirement] = []
+    for req in reqs:
+        if req.skill_id and req.skill_id in known:
+            ids: list[str | None] = [req.skill_id]
+        else:
+            ids = [sid for sid, _name, _term in find_skills(req.raw)] or [None]
+        for sid in ids:
+            if any(existing.skill_id == sid for existing in out):
+                continue
+            entry = known.get(sid or "", {})
+            out.append(
+                req.model_copy(
+                    update={
+                        "skill_id": sid,
+                        "type": req.type or ("soft" if entry.get("type") == "soft" else "hard"),
+                        "category": req.category or entry.get("category", ""),
+                    }
+                )
+            )
+    return out
 
 
 def _parse_heuristic(text: str) -> JDDoc:
     required_text, optional_text = _split_required_optional(text)
     reqs = _requirements_from(required_text, required=True)
-    reqs += [r for r in _requirements_from(optional_text, required=False) if r.skill_id not in {x.skill_id for x in reqs}]
+    reqs += [
+        r
+        for r in _requirements_from(optional_text, required=False)
+        if r.skill_id not in {x.skill_id for x in reqs}
+    ]
     keywords = [r.skill_id for r in reqs if r.skill_id]
     return JDDoc(
         language=detect_language(text),
@@ -74,7 +107,7 @@ def _requirements_from(text: str, required: bool) -> list[Requirement]:
     if years:
         level = min(5, max(2, years))
     out: list[Requirement] = []
-    for sid, name, term in find_skills(text):
+    for sid, name, _term in find_skills(text):
         entry = skill_map().get(sid, {})
         out.append(
             Requirement(

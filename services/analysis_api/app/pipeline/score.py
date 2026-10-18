@@ -55,7 +55,9 @@ def _experience_score(cv: CVDoc, jd: JDDoc, cv_seniority: str) -> float:
     years = _cv_years(cv)
     required = _required_years(jd)
     years_fit = min(years / required, 1.0) if required else min(years / 3.0, 1.0)
-    seniority_fit = 1.0 if SENIORITY_RANK.get(cv_seniority, 3) >= SENIORITY_RANK.get(jd.seniority, 3) else 0.6
+    seniority_fit = (
+        1.0 if SENIORITY_RANK.get(cv_seniority, 3) >= SENIORITY_RANK.get(jd.seniority, 3) else 0.6
+    )
     relevance = 0.7
     return round(100.0 * (0.40 * years_fit + 0.35 * relevance + 0.25 * seniority_fit), 1)
 

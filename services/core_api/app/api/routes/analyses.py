@@ -11,7 +11,7 @@ router = APIRouter()
 @router.post("")
 async def create_analysis(payload: AnalyzeRequest) -> dict:
     return await analysis_client.analyze(
-        payload.cv_text, payload.jd_text, payload.options.model_dump()
+        payload.cv_text, payload.jd_text, payload.options.model_dump(), payload.cv_layout
     )
 
 

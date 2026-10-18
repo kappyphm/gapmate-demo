@@ -6,9 +6,14 @@ from fastapi import HTTPException
 from app.core.config import settings
 
 
-async def analyze(cv_text: str, jd_text: str, options: dict) -> dict:
+async def analyze(cv_text: str, jd_text: str, options: dict, cv_layout: dict | None = None) -> dict:
     url = f"{settings.analysis_api_url}/v1/analyze"
-    payload = {"cv_text": cv_text, "jd_text": jd_text, "options": options}
+    payload = {
+        "cv_text": cv_text,
+        "jd_text": jd_text,
+        "cv_layout": cv_layout or {},
+        "options": options,
+    }
     headers = {"x-internal-key": settings.internal_api_key}
     try:
         async with httpx.AsyncClient(timeout=90) as client:
