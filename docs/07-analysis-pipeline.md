@@ -183,7 +183,7 @@ Per [`06-roadmap-phases.md`](./06-roadmap-phases.md):
 |---|---|
 | **P1** ✅ | Stages 1–6 skeleton: `extract → parse → normalize → match → score` (B1–B2 only) |
 | **P2** ✅ | Stage 7 `ats` (rules engine); `extract` hardening (validation + OCR + layout facts); B3 embedding / B4 LLM adjudication; Stage 9 `suggest` (deterministic subset + before/after ATS projection) |
-| **P3** | Stages 8–11 `gap / roadmap / recommend` (+ candidate discovery) |
+| **P3** ✅ | Stages 8–11 `gap / roadmap / recommend` (+ candidate discovery) |
 | **P5** | Stage 9 full LLM rewriter, streaming UX |
 
 ## Appendix — FitGap reference files

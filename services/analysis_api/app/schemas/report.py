@@ -69,6 +69,40 @@ class AtsSection(BaseModel):
     projected_score: int | None = None
 
 
+class GapItem(BaseModel):
+    """One prioritized skill gap (docs/04 Part D)."""
+
+    skill_id: str
+    importance: float = 0.0
+    current_level: int = 0
+    target_level: int = 0
+    priority: str = "P1"
+    reason: str = ""
+    adjacent_to: list[str] = Field(default_factory=list)
+
+
+class RoadmapPhase(BaseModel):
+    """One phase of the learning roadmap (docs/07 stage 10)."""
+
+    phase: str
+    duration: str
+    focus_skills: list[str] = Field(default_factory=list)
+    milestones: list[str] = Field(default_factory=list)
+    resources: list[str] = Field(default_factory=list)
+
+
+class CourseRec(BaseModel):
+    """A recommended course mapped to gaps (docs/07 stage 11)."""
+
+    course_id: str
+    title: str = ""
+    provider: str = ""
+    skills_covered: list[str] = Field(default_factory=list)
+    match_reason: str = ""
+    url: str = ""
+    duration: str = ""
+
+
 class SuggestionItem(BaseModel):
     section: str
     original: str = ""
@@ -96,8 +130,8 @@ class Report(BaseModel):
     meta: ReportMeta
     match: MatchResult
     ats: AtsSection | None = None
-    gaps: list[dict] = Field(default_factory=list)
-    roadmap: list[dict] = Field(default_factory=list)
-    courses: list[dict] = Field(default_factory=list)
+    gaps: list[GapItem] = Field(default_factory=list)
+    roadmap: list[RoadmapPhase] = Field(default_factory=list)
+    courses: list[CourseRec] = Field(default_factory=list)
     suggestions: list[SuggestionItem] = Field(default_factory=list)
     ats_preview: AtsPreview | None = None

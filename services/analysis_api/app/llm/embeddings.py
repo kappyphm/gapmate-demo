@@ -72,6 +72,7 @@ def _call(text: str) -> list[float] | None:
             model=model,
             content=text,
             task_type="SEMANTIC_SIMILARITY",
+            request_options={"timeout": settings.gemini_timeout_seconds, "retry": None},
         )
         return list(resp["embedding"])
     except Exception as exc:  # noqa: BLE001 - degrade to deterministic cascade

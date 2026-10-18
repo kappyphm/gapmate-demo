@@ -1,27 +1,31 @@
-"""Course recommendation endpoint + catalog access (P3)."""
+"""Course catalog + recommendation endpoints (P3)."""
 
-import json
-from pathlib import Path
+from fastapi import APIRouter
+from pydantic import BaseModel, Field
 
-from fastapi import APIRouter, HTTPException
-
-from app.core.config import settings
+from app.data_loader import load_courses
+from app.pipeline.recommend import recommend_courses
+from app.schemas.report import CourseRec, GapItem
 
 router = APIRouter()
 
 
-def _load_catalog() -> list[dict]:
-    path = Path(settings.data_dir) / "courses.json"
-    if not path.exists():
-        return []
-    return json.loads(path.read_text(encoding="utf-8")).get("courses", [])
+class RecommendCoursesRequest(BaseModel):
+    gaps: list[GapItem] = Field(default_factory=list)
+    language: str = "en"
+    limit: int = Field(default=8, ge=1, le=20)
+
+
+class RecommendCoursesResponse(BaseModel):
+    courses: list[CourseRec]
 
 
 @router.get("/courses")
 async def list_courses() -> dict:
-    return {"courses": _load_catalog()}
+    return {"courses": load_courses()}
 
 
-@router.post("/recommend-courses")
-async def recommend_courses() -> dict:
-    raise HTTPException(status_code=501, detail="Recommender lands in P3")
+@router.post("/recommend-courses", response_model=RecommendCoursesResponse)
+async def recommend(payload: RecommendCoursesRequest) -> RecommendCoursesResponse:
+    courses = recommend_courses(payload.gaps, language=payload.language, limit=payload.limit)
+    return RecommendCoursesResponse(courses=courses)

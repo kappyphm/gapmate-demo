@@ -36,7 +36,11 @@ def _run(model, prompt: str, schema: dict | None, temperature: float) -> dict | 
     config: dict = {"response_mime_type": "application/json", "temperature": temperature}
     if schema is not None:
         config["response_schema"] = schema
-    resp = model.generate_content(prompt, generation_config=config)
+    # Bounded request (docs/07 §5): explicit timeout, no retries.
+    options = {"timeout": settings.gemini_timeout_seconds, "retry": None}
+    resp = model.generate_content(prompt, generation_config=config, request_options=options)
+    if not resp.text:
+        return None
     return json.loads(resp.text)
 
 

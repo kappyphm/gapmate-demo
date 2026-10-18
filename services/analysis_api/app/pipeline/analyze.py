@@ -1,12 +1,16 @@
-"""Pipeline orchestrator: extract → parse → normalize → match → score → ats → suggest (P2)."""
+"""Pipeline orchestrator: extract → parse → normalize → match → score → ats → suggest →
+gap → recommend → roadmap (P3)."""
 
 from datetime import UTC, datetime
 
 from app.core.config import settings
 from app.pipeline.ats import run_ats
+from app.pipeline.gap import build_gaps
 from app.pipeline.match import match
 from app.pipeline.parse_cv import cv_seniority, parse_cv
 from app.pipeline.parse_jd import parse_jd
+from app.pipeline.recommend import recommend_courses
+from app.pipeline.roadmap import build_roadmap
 from app.pipeline.score import score
 from app.pipeline.suggest import build_suggestions, project_ats
 from app.schemas.report import AnalyzeRequest, Report, ReportMeta
@@ -41,6 +45,13 @@ def run_analysis(req: AnalyzeRequest) -> Report:
     )
     ats.projected_score = preview.after
 
+    lang = cv.language if cv.language in {"vi", "en"} else "en"
+    gaps = build_gaps(jd, matched, cv.skills, language=lang)
+    courses = recommend_courses(gaps, language=lang)
+    roadmap = build_roadmap(
+        gaps, hours_per_week=req.options.hours_per_week, language=lang, courses=courses
+    )
+
     confidence = round(min(0.95, (cv.meta.parse_confidence + 0.7) / 2), 2)
     return Report(
         meta=ReportMeta(
@@ -52,6 +63,9 @@ def run_analysis(req: AnalyzeRequest) -> Report:
         ),
         match=result,
         ats=ats,
+        gaps=gaps,
+        roadmap=roadmap,
+        courses=courses,
         suggestions=suggestions,
         ats_preview=preview,
     )

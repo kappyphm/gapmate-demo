@@ -1,17 +1,21 @@
 import { useState, type FormEvent } from "react";
 import { createAnalysis } from "../api/client";
 import AtsView from "../components/report/AtsView";
+import CoursesView from "../components/report/CoursesView";
 import MatchView from "../components/report/MatchView";
+import RoadmapView from "../components/report/RoadmapView";
 import SuggestionsView from "../components/report/SuggestionsView";
 import { DEFAULT_SAMPLE, SAMPLE_GROUPS, SAMPLES } from "../samples";
 import type { Report } from "../types/report";
 
-type Tab = "match" | "ats" | "suggestions";
+type Tab = "match" | "ats" | "suggestions" | "roadmap" | "courses";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "match", label: "Match" },
   { id: "ats", label: "ATS" },
   { id: "suggestions", label: "Suggestions" },
+  { id: "roadmap", label: "Roadmap" },
+  { id: "courses", label: "Courses" },
 ];
 
 export default function Analyze() {
@@ -35,6 +39,7 @@ export default function Analyze() {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setReport(null);
     try {
       const result = await createAnalysis({ cv_text: cvText, jd_text: jdText });
       setReport(result);
@@ -152,6 +157,10 @@ export default function Analyze() {
                 preview={report.ats_preview}
               />
             )}
+            {tab === "roadmap" && (
+              <RoadmapView gaps={report.gaps} roadmap={report.roadmap} />
+            )}
+            {tab === "courses" && <CoursesView courses={report.courses} />}
           </div>
         ) : (
           <p className="text-sm text-slate-400">Results will appear here.</p>

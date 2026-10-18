@@ -4,7 +4,12 @@ import re
 
 from app.data_loader import find_skills, skill_map
 from app.llm import gemini
-from app.pipeline.normalize import canonical, detect_language
+from app.pipeline.normalize import (
+    canonical,
+    detect_language,
+    discover_candidate,
+    discover_candidates_in,
+)
 from app.schemas.jd import JDDoc, Requirement
 
 NICE_RE = re.compile(
@@ -66,7 +71,9 @@ def _normalize_requirements(reqs: list[Requirement]) -> list[Requirement]:
         if req.skill_id and req.skill_id in known:
             ids: list[str | None] = [req.skill_id]
         else:
-            ids = [sid for sid, _name, _term in find_skills(req.raw)] or [None]
+            ids = [sid for sid, _name, _term in find_skills(req.raw)] or [
+                discover_candidate(req.raw)
+            ]
         for sid in ids:
             if any(existing.skill_id == sid for existing in out):
                 continue
@@ -118,6 +125,19 @@ def _requirements_from(text: str, required: bool) -> list[Requirement]:
                 required=required,
                 level=level,
                 category=entry.get("category", ""),
+            )
+        )
+    existing = {r.skill_id for r in out}
+    for raw, sid in discover_candidates_in(text, exclude=existing):
+        out.append(
+            Requirement(
+                raw=raw,
+                skill_id=sid,
+                type="hard",
+                importance=1.0 if required else 0.5,
+                required=required,
+                level=level,
+                category="",
             )
         )
     return out

@@ -71,13 +71,41 @@ export interface AtsPreview {
   after: number;
 }
 
+export interface GapItem {
+  skill_id: string;
+  importance: number;
+  current_level: number;
+  target_level: number;
+  priority: "P0" | "P1" | "P2";
+  reason: string;
+  adjacent_to: string[];
+}
+
+export interface RoadmapPhase {
+  phase: string;
+  duration: string;
+  focus_skills: string[];
+  milestones: string[];
+  resources: string[];
+}
+
+export interface CourseRec {
+  course_id: string;
+  title: string;
+  provider: string;
+  skills_covered: string[];
+  match_reason: string;
+  url: string;
+  duration: string;
+}
+
 export interface Report {
   meta: ReportMeta;
   match: MatchResult;
   ats: AtsSection | null;
-  gaps: unknown[];
-  roadmap: unknown[];
-  courses: unknown[];
+  gaps: GapItem[];
+  roadmap: RoadmapPhase[];
+  courses: CourseRec[];
   suggestions: SuggestionItem[];
   ats_preview: AtsPreview | null;
 }

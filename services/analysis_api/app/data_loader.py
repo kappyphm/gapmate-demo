@@ -23,6 +23,42 @@ def skill_map() -> dict[str, dict]:
 
 
 @lru_cache(maxsize=1)
+def load_courses() -> list[dict]:
+    path = Path(settings.data_dir) / "courses.json"
+    if not path.exists():
+        return []
+    return json.loads(path.read_text(encoding="utf-8")).get("courses", [])
+
+
+@lru_cache(maxsize=1)
+def compact_index() -> dict[str, str]:
+    """alnum-only lowercased key (skill_id / canonical / alias) -> skill_id.
+
+    Non-ASCII keys (e.g. Vietnamese aliases) are skipped: stripping their diacritics
+    would create false collisions ("thuế" -> "thu"). Vietnamese aliases are still
+    matched directly by ``term_index``.
+    """
+
+    def compact_key(key: str) -> str | None:
+        if any(ord(ch) > 127 for ch in key):
+            return None
+        compact = re.sub(r"[^a-z0-9]", "", key.lower())
+        return compact or None
+
+    out: dict[str, str] = {}
+    for entry in load_taxonomy().get("skills", []):
+        sid = entry["skill_id"]
+        keys = {sid, sid.replace("_", " "), entry["canonical_name"]}
+        for lang_terms in entry.get("aliases", {}).values():
+            keys.update(lang_terms)
+        for key in keys:
+            ck = compact_key(key)
+            if ck and ck not in out:
+                out[ck] = sid
+    return out
+
+
+@lru_cache(maxsize=1)
 def term_index() -> list[tuple[re.Pattern, str]]:
     """Ordered list of (compiled pattern, skill_id). Longest terms first."""
     entries: list[tuple[str, str]] = []

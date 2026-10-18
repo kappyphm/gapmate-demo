@@ -63,3 +63,36 @@ def test_golden_no_skills_are_invented_in_suggestions():
     cv_text, jd_text = _samples()
     report = run_analysis(AnalyzeRequest(cv_text=cv_text, jd_text=jd_text))
     assert all(not s.jd_keywords_addressed for s in report.suggestions)
+
+
+def test_golden_gaps_are_the_unmatched_requirements():
+    cv_text, jd_text = _samples()
+    report = run_analysis(AnalyzeRequest(cv_text=cv_text, jd_text=jd_text))
+
+    gap_ids = {g.skill_id for g in report.gaps}
+    assert gap_ids
+    assert gap_ids <= {m.skill_id for m in report.match.missing}
+    assert all(g.priority in ("P0", "P1", "P2") for g in report.gaps)
+    assert all(g.reason for g in report.gaps)
+
+
+def test_golden_roadmap_focus_stays_within_gaps():
+    cv_text, jd_text = _samples()
+    report = run_analysis(AnalyzeRequest(cv_text=cv_text, jd_text=jd_text))
+
+    gap_ids = {g.skill_id for g in report.gaps}
+    assert report.roadmap
+    for phase in report.roadmap:
+        assert phase.focus_skills
+        assert set(phase.focus_skills) <= gap_ids
+
+
+def test_golden_courses_map_to_gaps():
+    cv_text, jd_text = _samples()
+    report = run_analysis(AnalyzeRequest(cv_text=cv_text, jd_text=jd_text))
+
+    gap_ids = {g.skill_id for g in report.gaps}
+    assert report.courses
+    for course in report.courses:
+        assert set(course.skills_covered) & gap_ids
+        assert course.match_reason
