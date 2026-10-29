@@ -1,9 +1,18 @@
 """GapMate Analysis API — stateless CV/JD analysis pipeline."""
 
+import logging
+
 from fastapi import FastAPI
 
 from app.api.routes import analyze, ats, courses, parse, taxonomy
 from app.core.config import settings
+
+# App loggers (per-request analysis + LLM usage lines, warnings) must reach
+# the container log; without this only uvicorn's own access logs show.
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
 
 app = FastAPI(title=settings.app_name, version=settings.pipeline_version)
 

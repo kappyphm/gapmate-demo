@@ -1,10 +1,19 @@
 """GapMate Core API — SaaS platform (auth, users, subscription, history)."""
 
+import logging
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import analyses, auth, subscriptions, users
 from app.core.config import settings
+
+# App loggers (per-request analysis + extract lines) must reach the
+# container log; without this only uvicorn's own access logs show.
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
 
 app = FastAPI(title=settings.app_name)
 

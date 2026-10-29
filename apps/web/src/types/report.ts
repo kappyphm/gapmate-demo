@@ -26,12 +26,28 @@ export interface MatchResult {
   evidence: string[];
 }
 
+export interface UsageStats {
+  llm_calls: number;
+  prompt_tokens: number;
+  output_tokens: number;
+  total_tokens: number;
+  embedding_calls: number;
+  embedding_input_chars: number;
+}
+
 export interface ReportMeta {
   pipeline_version: string;
   created_at: string;
   confidence: number;
   mode: string;
   role_template: string;
+  usage?: UsageStats | null;
+}
+
+export interface ExtractResult {
+  text: string;
+  layout: Record<string, unknown>;
+  blocks?: unknown[];
 }
 
 export interface AtsIssue {

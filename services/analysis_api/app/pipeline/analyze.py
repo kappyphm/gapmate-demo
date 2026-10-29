@@ -1,9 +1,17 @@
 """Pipeline orchestrator: extract → parse → normalize → match → score → ats → suggest →
-gap → recommend → roadmap (P3)."""
+gap → recommend → roadmap (P3).
 
+Each run is wrapped in LLM usage tracking (issue #4): one structured
+``analysis_request`` log line per request, and the totals are attached to
+``Report.meta.usage``.
+"""
+
+import logging
+import time
 from datetime import UTC, datetime
 
 from app.core.config import settings
+from app.llm import usage
 from app.pipeline.ats import run_ats
 from app.pipeline.gap import build_gaps
 from app.pipeline.match import match
@@ -15,8 +23,43 @@ from app.pipeline.score import score
 from app.pipeline.suggest import build_suggestions, project_ats
 from app.schemas.report import AnalyzeRequest, Report, ReportMeta
 
+logger = logging.getLogger(__name__)
+
 
 def run_analysis(req: AnalyzeRequest) -> Report:
+    tracker, token = usage.start_tracking()
+    started = time.perf_counter()
+    try:
+        report = _run_pipeline(req)
+    except Exception:
+        usage.stop_tracking(token)
+        raise
+    duration_ms = round((time.perf_counter() - started) * 1000)
+    totals = tracker.snapshot()
+    usage.stop_tracking(token)
+
+    report.meta.usage = totals
+    logger.info(
+        "analysis_request mode=%s duration_ms=%d cv_chars=%d jd_chars=%d "
+        "llm_calls=%d prompt_tokens=%d output_tokens=%d total_tokens=%d "
+        "embedding_calls=%d embedding_input_chars=%d overall=%d ats=%s",
+        report.meta.mode,
+        duration_ms,
+        len(req.cv_text),
+        len(req.jd_text),
+        totals["llm_calls"],
+        totals["prompt_tokens"],
+        totals["output_tokens"],
+        totals["total_tokens"],
+        totals["embedding_calls"],
+        totals["embedding_input_chars"],
+        report.match.overall,
+        report.ats.score if report.ats else "-",
+    )
+    return report
+
+
+def _run_pipeline(req: AnalyzeRequest) -> Report:
     cv = parse_cv(req.cv_text)
     jd = parse_jd(req.jd_text)
     matched, missing = match(jd, cv)

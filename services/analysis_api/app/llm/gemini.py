@@ -5,11 +5,21 @@ import logging
 import time
 
 from app.core.config import settings
+from app.llm import usage
 
 logger = logging.getLogger(__name__)
 
 # Transient errors worth retrying (overload, quota, network).
-_TRANSIENT_MARKERS = ("503", "500", "429", "overloaded", "unavailable", "timeout", "deadline", "connection")
+_TRANSIENT_MARKERS = (
+    "503",
+    "500",
+    "429",
+    "overloaded",
+    "unavailable",
+    "timeout",
+    "deadline",
+    "connection",
+)
 _MAX_TRANSIENT_RETRIES = 2
 _RETRY_BASE_DELAY_SECONDS = 2.0
 
@@ -45,7 +55,9 @@ def generate_json(prompt: str, schema: dict | None = None, temperature: float = 
         return None
 
 
-def _call_with_transient_retry(model, prompt: str, schema: dict | None, temperature: float) -> dict | None:
+def _call_with_transient_retry(
+    model, prompt: str, schema: dict | None, temperature: float
+) -> dict | None:
     """Retry transient failures (503/429/timeout) up to _MAX_TRANSIENT_RETRIES times with backoff."""
     last_exc: Exception | None = None
     for attempt in range(_MAX_TRANSIENT_RETRIES + 1):
@@ -55,7 +67,13 @@ def _call_with_transient_retry(model, prompt: str, schema: dict | None, temperat
             if not _is_transient(exc) or attempt >= _MAX_TRANSIENT_RETRIES:
                 raise
             delay = _RETRY_BASE_DELAY_SECONDS * (2**attempt)
-            logger.warning("Gemini transient error (attempt %d/%d), retrying in %.1fs: %s", attempt + 1, _MAX_TRANSIENT_RETRIES + 1, delay, exc)
+            logger.warning(
+                "Gemini transient error (attempt %d/%d), retrying in %.1fs: %s",
+                attempt + 1,
+                _MAX_TRANSIENT_RETRIES + 1,
+                delay,
+                exc,
+            )
             last_exc = exc
             time.sleep(delay)
     raise last_exc  # pragma: no cover - unreachable; loop always returns or raises
@@ -68,6 +86,7 @@ def _run(model, prompt: str, schema: dict | None, temperature: float) -> dict | 
     # Bounded request (docs/07 §5): explicit timeout, no retries.
     options = {"timeout": settings.gemini_timeout_seconds, "retry": None}
     resp = model.generate_content(prompt, generation_config=config, request_options=options)
+    usage.record_llm(getattr(resp, "usage_metadata", None))
     if not resp.text:
         return None
     return json.loads(resp.text)
