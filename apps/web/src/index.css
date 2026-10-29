@@ -3,7 +3,11 @@
 @tailwind utilities;
 
 :root {
-  color-scheme: light dark;
+  color-scheme: light;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
@@ -14,4 +18,9 @@ body {
     "Segoe UI",
     Roboto,
     sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background-color: #e0e7ff;
 }
