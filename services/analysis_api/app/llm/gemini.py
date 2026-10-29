@@ -2,14 +2,25 @@
 
 import json
 import logging
+import time
 
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
+# Transient errors worth retrying (overload, quota, network).
+_TRANSIENT_MARKERS = ("503", "500", "429", "overloaded", "unavailable", "timeout", "deadline", "connection")
+_MAX_TRANSIENT_RETRIES = 2
+_RETRY_BASE_DELAY_SECONDS = 2.0
+
 
 def available() -> bool:
     return bool(settings.gemini_api_key)
+
+
+def _is_transient(exc: Exception) -> bool:
+    msg = str(exc).lower()
+    return any(marker in msg for marker in _TRANSIENT_MARKERS)
 
 
 def generate_json(prompt: str, schema: dict | None = None, temperature: float = 0.1) -> dict | None:
@@ -23,13 +34,31 @@ def generate_json(prompt: str, schema: dict | None = None, temperature: float = 
         model = genai.GenerativeModel(settings.gemini_model)
         clean = _to_gemini_schema(schema) if schema else None
         try:
-            return _run(model, prompt, clean, temperature)
-        except Exception as exc:  # noqa: BLE001 - e.g. schema unsupported
+            return _call_with_transient_retry(model, prompt, clean, temperature)
+        except Exception as exc:  # noqa: BLE001 - e.g. schema unsupported (non-transient)
+            if _is_transient(exc):
+                raise  # already retried; let outer handler fall back
             logger.warning("Gemini structured call failed (%s); retrying without schema", exc)
-            return _run(model, prompt, None, temperature)
+            return _call_with_transient_retry(model, prompt, None, temperature)
     except Exception as exc:  # noqa: BLE001 - fall back to heuristics on any failure
         logger.warning("Gemini call failed, falling back to heuristic: %s", exc)
         return None
+
+
+def _call_with_transient_retry(model, prompt: str, schema: dict | None, temperature: float) -> dict | None:
+    """Retry transient failures (503/429/timeout) up to _MAX_TRANSIENT_RETRIES times with backoff."""
+    last_exc: Exception | None = None
+    for attempt in range(_MAX_TRANSIENT_RETRIES + 1):
+        try:
+            return _run(model, prompt, schema, temperature)
+        except Exception as exc:  # noqa: BLE001
+            if not _is_transient(exc) or attempt >= _MAX_TRANSIENT_RETRIES:
+                raise
+            delay = _RETRY_BASE_DELAY_SECONDS * (2**attempt)
+            logger.warning("Gemini transient error (attempt %d/%d), retrying in %.1fs: %s", attempt + 1, _MAX_TRANSIENT_RETRIES + 1, delay, exc)
+            last_exc = exc
+            time.sleep(delay)
+    raise last_exc  # pragma: no cover - unreachable; loop always returns or raises
 
 
 def _run(model, prompt: str, schema: dict | None, temperature: float) -> dict | None:
