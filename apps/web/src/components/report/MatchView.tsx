@@ -13,7 +13,10 @@ function Bar({ value }: { value: number }) {
     pct >= 75 ? "bg-emerald-500" : pct >= 50 ? "bg-amber-500" : "bg-rose-500";
   return (
     <div className="h-2 w-full rounded bg-slate-200">
-      <div className={`h-2 rounded ${color}`} style={{ width: `${pct}%` }} />
+      <div
+        className={`h-2 rounded transition-[width] duration-500 ${color}`}
+        style={{ width: `${pct}%` }}
+      />
     </div>
   );
 }
