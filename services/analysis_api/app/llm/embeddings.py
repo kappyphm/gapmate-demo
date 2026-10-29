@@ -11,7 +11,7 @@ import math
 from pathlib import Path
 
 from app.core.config import settings
-from app.llm import gemini
+from app.llm import gemini, usage
 
 logger = logging.getLogger(__name__)
 
@@ -74,6 +74,7 @@ def _call(text: str) -> list[float] | None:
             task_type="SEMANTIC_SIMILARITY",
             request_options={"timeout": settings.gemini_timeout_seconds, "retry": None},
         )
+        usage.record_embedding(text)
         return list(resp["embedding"])
     except Exception as exc:  # noqa: BLE001 - degrade to deterministic cascade
         logger.warning("Embedding call failed (%s)", type(exc).__name__)

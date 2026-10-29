@@ -124,6 +124,9 @@ class ReportMeta(BaseModel):
     confidence: float = 0.0
     mode: str = "heuristic"
     role_template: str = "frontend"
+    # Per-request LLM usage (issue #4): token counts from Gemini usage_metadata
+    # plus embedding call counts. All zeros in heuristic mode (no LLM calls).
+    usage: dict | None = None
 
 
 class Report(BaseModel):
