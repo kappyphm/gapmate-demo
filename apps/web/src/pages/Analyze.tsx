@@ -1,12 +1,12 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import { useSearchParams } from "react-router-dom";
-import { createAnalysis } from "../api/client";
+import { createAnalysis, extractFile } from "../api/client";
 import AtsView from "../components/report/AtsView";
 import CoursesView from "../components/report/CoursesView";
 import MatchView from "../components/report/MatchView";
 import RoadmapView from "../components/report/RoadmapView";
 import SuggestionsView from "../components/report/SuggestionsView";
-import { DEFAULT_SAMPLE, SAMPLE_GROUPS, SAMPLES } from "../samples";
+import { SAMPLES } from "../samples";
 import type { Report } from "../types/report";
 
 type Tab = "match" | "ats" | "suggestions" | "roadmap" | "courses";
@@ -22,6 +22,53 @@ const TABS: { id: Tab; label: string }[] = [
 const TEXTAREA_CLASS =
   "mt-1 w-full rounded-lg border border-slate-300 p-3 font-mono text-sm shadow-sm transition focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100";
 
+interface UploadState {
+  name: string;
+  status: "idle" | "uploading" | "done" | "error";
+  message?: string;
+}
+
+const IDLE_UPLOAD: UploadState = { name: "", status: "idle" };
+
+function UploadField({
+  label,
+  state,
+  onChange,
+}: {
+  label: string;
+  state: UploadState;
+  onChange: (e: ChangeEvent<HTMLInputElement>) => void;
+}) {
+  return (
+    <div>
+      <span className="text-sm font-medium text-slate-700">{label}</span>
+      <label className="mt-1.5 flex cursor-pointer items-center gap-3 rounded-lg border border-dashed border-slate-300 px-3.5 py-2.5 text-sm transition hover:border-indigo-300 hover:bg-indigo-50/50">
+        <span className="shrink-0 rounded-md bg-indigo-600 px-2.5 py-1 text-xs font-medium text-white">
+          Choose file
+        </span>
+        <span className="min-w-0 flex-1 truncate text-slate-500">
+          {state.name || "PDF, DOCX, TXT or MD — max 5 MB"}
+        </span>
+        <input
+          type="file"
+          accept=".pdf,.docx,.txt,.md"
+          className="hidden"
+          onChange={onChange}
+        />
+      </label>
+      {state.status === "uploading" && (
+        <p className="mt-1 text-xs text-slate-500">Extracting text…</p>
+      )}
+      {state.status === "done" && (
+        <p className="mt-1 text-xs text-emerald-600">✓ {state.message}</p>
+      )}
+      {state.status === "error" && (
+        <p className="mt-1 text-xs text-rose-600">{state.message}</p>
+      )}
+    </div>
+  );
+}
+
 export default function Analyze() {
   const [cvText, setCvText] = useState("");
   const [jdText, setJdText] = useState("");
@@ -29,7 +76,11 @@ export default function Analyze() {
   const [tab, setTab] = useState<Tab>("match");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [sampleId, setSampleId] = useState(DEFAULT_SAMPLE.id);
+  const [cvLayout, setCvLayout] = useState<Record<string, unknown> | undefined>(
+    undefined,
+  );
+  const [cvUpload, setCvUpload] = useState<UploadState>(IDLE_UPLOAD);
+  const [jdUpload, setJdUpload] = useState<UploadState>(IDLE_UPLOAD);
   const [searchParams] = useSearchParams();
 
   // Landing page links here with ?sample=<id> to open a ready-made example.
@@ -38,19 +89,46 @@ export default function Analyze() {
     if (!sampleParam) return;
     const sample = SAMPLES.find((s) => s.id === sampleParam);
     if (!sample) return;
-    setSampleId(sample.id);
     setCvText(sample.cv);
     setJdText(sample.jd);
+    setCvLayout(undefined);
+    setCvUpload(IDLE_UPLOAD);
+    setJdUpload(IDLE_UPLOAD);
     setReport(null);
     setError(null);
   }, [sampleParam]);
 
-  function onLoadSample() {
-    const sample = SAMPLES.find((s) => s.id === sampleId) ?? DEFAULT_SAMPLE;
-    setCvText(sample.cv);
-    setJdText(sample.jd);
-    setReport(null);
-    setError(null);
+  async function onFile(kind: "cv" | "jd", e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // allow re-picking the same file later
+    if (!file) return;
+    const setUpload = kind === "cv" ? setCvUpload : setJdUpload;
+    setUpload({ name: file.name, status: "uploading" });
+    try {
+      const result = await extractFile(file);
+      if (!result.text.trim()) {
+        throw new Error("No text could be extracted from this file.");
+      }
+      if (kind === "cv") {
+        setCvText(result.text);
+        setCvLayout(result.layout);
+      } else {
+        setJdText(result.text);
+      }
+      setUpload({
+        name: file.name,
+        status: "done",
+        message: `${result.text.length.toLocaleString()} characters extracted`,
+      });
+      setReport(null);
+      setError(null);
+    } catch (err) {
+      setUpload({
+        name: file.name,
+        status: "error",
+        message: err instanceof Error ? err.message : String(err),
+      });
+    }
   }
 
   async function onSubmit(e: FormEvent) {
@@ -59,7 +137,11 @@ export default function Analyze() {
     setError(null);
     setReport(null);
     try {
-      const result = await createAnalysis({ cv_text: cvText, jd_text: jdText });
+      const result = await createAnalysis({
+        cv_text: cvText,
+        jd_text: jdText,
+        cv_layout: cvLayout,
+      });
       setReport(result);
       setTab("match");
     } catch (err) {
@@ -75,9 +157,9 @@ export default function Analyze() {
         Analyze a CV against a job description
       </h1>
       <p className="mt-2 max-w-2xl text-slate-600">
-        Paste both documents — or start from a built-in sample — and get a match
-        score, an ATS audit, prioritized skill gaps, a roadmap and course
-        recommendations.
+        Upload the original CV and job description files — PDF works best — or
+        paste the text, and get a match score, an ATS audit, prioritized skill
+        gaps, a roadmap and course recommendations.
       </p>
 
       <div className="mt-8 grid items-start gap-6 lg:grid-cols-2">
@@ -85,38 +167,25 @@ export default function Analyze() {
           onSubmit={onSubmit}
           className="space-y-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
         >
-          <div>
+          <div className="space-y-4">
             <h2 className="text-lg font-semibold text-slate-900">
               New analysis
             </h2>
-            <label className="mt-3 block text-sm font-medium text-slate-700">
-              Start from a sample
-            </label>
-            <div className="mt-1.5 flex items-center gap-2">
-              <select
-                value={sampleId}
-                onChange={(e) => setSampleId(e.target.value)}
-                aria-label="Sample CV and job description"
-                className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-sm shadow-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
-              >
-                {SAMPLE_GROUPS.map((group) => (
-                  <optgroup key={group.industry} label={group.industry}>
-                    {group.samples.map((sample) => (
-                      <option key={sample.id} value={sample.id}>
-                        {sample.label}
-                      </option>
-                    ))}
-                  </optgroup>
-                ))}
-              </select>
-              <button
-                type="button"
-                onClick={onLoadSample}
-                className="shrink-0 rounded-lg border border-slate-300 px-3.5 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
-              >
-                Load sample
-              </button>
-            </div>
+            <UploadField
+              label="Upload CV file"
+              state={cvUpload}
+              onChange={(e) => onFile("cv", e)}
+            />
+            <UploadField
+              label="Upload job description file"
+              state={jdUpload}
+              onChange={(e) => onFile("jd", e)}
+            />
+            <p className="text-xs text-slate-400">
+              Extracted text appears in the boxes below — check it before
+              analyzing. Uploading the original PDF also gives the ATS audit the
+              real layout (pages, columns, tables).
+            </p>
           </div>
 
           <label className="block">
@@ -207,6 +276,12 @@ export default function Analyze() {
                 <span className="rounded-full bg-slate-100 px-2.5 py-1">
                   pipeline: {report.meta.pipeline_version}
                 </span>
+                {report.meta.usage && (
+                  <span className="rounded-full bg-slate-100 px-2.5 py-1">
+                    tokens: {report.meta.usage.total_tokens} · llm calls:{" "}
+                    {report.meta.usage.llm_calls}
+                  </span>
+                )}
               </div>
 
               <div className="flex gap-1 overflow-x-auto border-b border-slate-200">
@@ -253,7 +328,7 @@ export default function Analyze() {
                 <ol className="mt-4 space-y-3 text-sm text-slate-600">
                   <li>
                     <span className="font-semibold text-indigo-600">1.</span>{" "}
-                    Load a sample or paste your own CV and job description.
+                    Upload your CV and job description files, or paste the text.
                   </li>
                   <li>
                     <span className="font-semibold text-indigo-600">2.</span>{" "}
@@ -266,9 +341,9 @@ export default function Analyze() {
                   </li>
                 </ol>
                 <p className="mt-5 rounded-lg bg-indigo-50 px-3.5 py-2.5 text-sm text-indigo-800">
-                  Tip: the built-in samples cover {SAMPLE_GROUPS.length}{" "}
-                  industries, in Vietnamese and English — the fastest way to see
-                  a full report.
+                  Tip: uploading the original PDF lets the ATS audit check the
+                  real layout — pages, columns and tables — instead of guessing
+                  from plain text.
                 </p>
               </div>
             )

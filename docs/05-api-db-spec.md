@@ -13,6 +13,7 @@ Base URL (dev): `http://localhost:8000`
 | GET | `/subscriptions` | JWT | List tiers |
 | POST | `/subscriptions/checkout` | JWT | Stub checkout |
 | POST | `/analyses` | JWT | Create analysis (orchestrates analysis-api) |
+| POST | `/analyses/extract` | JWT | Upload CV/JD file (PDF/DOCX/TXT/MD, ≤5 MB) → extracted text + layout (proxies analysis-api `/v1/extract`; nothing is stored) |
 | GET | `/analyses` | JWT | List history (paginated) |
 | GET | `/analyses/{id}` | JWT | Get one analysis |
 | DELETE | `/analyses/{id}` | JWT | Delete analysis |
@@ -31,6 +32,15 @@ Base URL (dev): `http://localhost:8000`
 { "cv": "<file or text>", "jd": "<text>", "options": { "role_template": "frontend", "hours_per_week": 8 } }
 // response: Report (see 03-data-contracts) + { "id": "<analysis-id>" }
 ```
+
+> **Usage logging (issues #4/#6):** every analysis request is logged on both
+> services. analysis-api emits one structured `analysis_request` line per run
+> (mode, duration, CV/JD sizes, LLM token totals, embedding calls, resulting
+> scores) and returns the same totals in `Report.meta.usage`; core-api logs
+> `analysis_request_received` / `analysis_request_completed` with the token
+> totals from the report. Token counts come from Gemini `usage_metadata`;
+> the embeddings API reports no tokens, so embeddings are counted as calls +
+> input characters.
 
 ## 2. analysis-api (internal, `x-internal-key`)
 
